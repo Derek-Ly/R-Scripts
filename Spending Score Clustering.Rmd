@@ -1,0 +1,321 @@
+---
+title: "MMA869 Assignment Question 1"
+author: "Derek Ly"
+date: '2019-08-18'
+output: pdf_document
+---
+
+```{r Load the appropriate packages}
+# Load the appropriate packages
+
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(extrafont)
+library(ggthemes)
+library(caret)
+library(cluster) # For preprocessing
+library(factoextra) # for elbow plots
+library(amap) # For distance metrics
+library(stylo) # For cosine distance
+loadfonts(quiet = T)
+library(gridExtra) # For the grid plot for ggplot2
+library(dbscan) # Using dbscan
+library(tsne)
+library(reticulate)
+```
+
+```{r Load the data into the proper dataframe}
+# Load the data into the proper dataframe
+
+setwd("~/Desktop/MMA/MMA869 Machine Learning and AI/Assignment 1")
+# setwd("~/R/MMA/MMA869 Machine Learning and AI/Session 1")
+
+dat <- read_csv("jewelry_customers.csv")
+# dat <- read_csv(file.choose())
+
+str(dat)
+dat %>%
+  select(Age, Income, SpendingScore,Savings) %>%
+  head(n=15)
+```
+
+```{r Create functions that will plot the Clusters}
+# Create functions that will plot the Clusters
+
+plotClusti = function(df, colorCol) {
+  ggplot(df, aes(x= Income, y=SpendingScore)) + 
+    geom_point(aes(color=factor(colorCol)), size=1) +
+    geom_rangeframe() + 
+    # theme_tufte(base_family="Calibri") + 
+    #theme(legend.position="none") + 
+    theme(axis.title.x = element_text(colour="grey20",size=15,face="plain")) + 
+    theme(axis.title.y = element_text(colour="grey20",size=15,face="plain")) + 
+    theme(axis.text.x = element_text(colour="grey20",size=10,face="plain")) + 
+    theme(axis.text.y = element_text(colour="grey20",size=10,face="plain")) +
+    labs(x = "Scaled Income", y ="Spending Score") 
+  
+}
+# Spending Score vs. Income plot function
+
+plotClusta = function(df, colorCol) {
+  ggplot(df, aes(x= Age, y=SpendingScore)) + 
+    geom_point(aes(color=factor(colorCol)), size=1) +
+    geom_rangeframe() + 
+    # theme_tufte(base_family="Calibri") + 
+    #theme(legend.position="none") + 
+    theme(axis.title.x = element_text(colour="grey20",size=15,face="plain")) + 
+    theme(axis.title.y = element_text(colour="grey20",size=15,face="plain")) + 
+    theme(axis.text.x = element_text(colour="grey20",size=10,face="plain")) + 
+    theme(axis.text.y = element_text(colour="grey20",size=10,face="plain")) +
+    labs(x = "Scaled Age", y ="Spending Score") 
+  
+}
+# Spending Score vs. Age plot function
+
+plotClusts = function(df, colorCol) {
+  ggplot(df, aes(x= Savings, y=SpendingScore)) + 
+    geom_point(aes(color=factor(colorCol)), size=1) +
+    geom_rangeframe() + 
+    # theme_tufte(base_family="Calibri") + 
+    #theme(legend.position="none") + 
+    theme(axis.title.x = element_text(colour="grey20",size=15,face="plain")) + 
+    theme(axis.title.y = element_text(colour="grey20",size=15,face="plain")) + 
+    theme(axis.text.x = element_text(colour="grey20",size=10,face="plain")) + 
+    theme(axis.text.y = element_text(colour="grey20",size=10,face="plain")) +
+    labs(x = "Scaled Savings", y ="Spending Score") 
+  
+}
+# Spending Score vs. Savings plot function
+
+```
+
+
+```{r Plotting the Clusters in 2-D plots for visualizing purposes}
+# Plotting the Clusters in 2-D plots for visualizing purposes
+
+iwidth = 10
+iheight = 7
+
+theme_set(theme_gray(base_size = 32))
+
+par(mfrow=c(1,1))
+
+# Spend score vs Income
+I <- ggplot(dat, aes(x=Income, y=SpendingScore)) + 
+  geom_point(color="black", size=3) +
+  geom_rangeframe() + 
+  # theme_tufte(base_family="Calibri") + 
+  theme(legend.position="none") + 
+  theme(axis.title.x = element_text(colour="grey20",size=20,face="plain")) + 
+  theme(axis.title.y = element_text(colour="grey20",size=20,face="plain")) + 
+  theme(axis.text.x = element_text(colour="grey20",size=16,face="plain")) + 
+  theme(axis.text.y = element_text(colour="grey20",size=16,face="plain")) +
+  labs(x = "Income", y ="Spending Score") 
+
+# Spend score vs Age
+A <- ggplot(dat, aes(x=Age, y=SpendingScore)) + 
+  geom_point(color="black", size=3) +
+  geom_rangeframe() + 
+  # theme_tufte(base_family="Calibri") + 
+  theme(legend.position="none") + 
+  theme(axis.title.x = element_text(colour="grey20",size=20,face="plain")) + 
+  theme(axis.title.y = element_text(colour="grey20",size=20,face="plain")) + 
+  theme(axis.text.x = element_text(colour="grey20",size=16,face="plain")) + 
+  theme(axis.text.y = element_text(colour="grey20",size=16,face="plain")) +
+  labs(x = "Age", y ="Spending Score") 
+
+# Spend score vs Savings
+S <- ggplot(dat, aes(x=Savings, y=SpendingScore)) + 
+  geom_point(color="black", size=3) +
+  geom_rangeframe() + 
+  # theme_tufte(base_family="Calibri") + 
+  theme(legend.position="none") + 
+  theme(axis.title.x = element_text(colour="grey20",size=20,face="plain")) + 
+  theme(axis.title.y = element_text(colour="grey20",size=20,face="plain")) + 
+  theme(axis.text.x = element_text(colour="grey20",size=16,face="plain")) + 
+  theme(axis.text.y = element_text(colour="grey20",size=16,face="plain")) +
+  labs(x = "Savings", y ="Spending Score") 
+I
+A
+S
+```
+
+```{r All three plots put side by side for visualization purposes}
+# All three plots put side by side for visualization purposes
+grid.arrange(I,A,S, ncol=3)
+```
+
+```{r Scaling the data}
+# Scaling the data
+
+pre = preProcess(dat[,c("Age", "Income", "SpendingScore","Savings")], method="range")
+dat.scaled = predict(pre, dat, method=c("range"))
+head(dat)
+head(dat.scaled)
+dat.scaled %>%
+  select(Age, Income, SpendingScore,Savings) %>%
+  head(n=15)
+```
+
+```{r Assigning the distance metrics to be used in clustering algorithm}
+# Assigning the distance metrics to be used in clustering algorithm
+
+df = dat.scaled[,c("Age", "Income", "SpendingScore","Savings")]
+dd_euc = as.matrix(Dist(df, method = "euclidean"))
+dd_man = as.matrix(Dist(df, method = "manhattan"))
+dd_cos = as.matrix(dist.cosine(as.matrix(df)))
+```
+
+```{r Plotting typical K-Means with K equal to 5 Cluster for Visualizing}
+# What would a typical K-Means with K=5 Cluster look like?
+# Just for visualizing purposes
+
+set.seed(2)
+
+clusters = kmeans(dat.scaled[,c("Income","SpendingScore","Age","Savings")],centers=5,nstart=10)
+dat.scaled$kmeans5 = clusters$cluster
+clusters$tot.withinss
+KI5 <- plotClusti(dat.scaled, clusters$cluster)
+KA5 <- plotClusta(dat.scaled, clusters$cluster)
+KS5 <- plotClusts(dat.scaled, clusters$cluster)
+grid.arrange(KI5,KA5,KS5, ncol=3)
+head(dat.scaled, n=15)
+clusters$centers
+clusters$size
+```
+
+```{r Elbow Plots with different algorithms and statistical methods}
+# Elbow Plots with different algorithms and statistical methods
+
+set.seed(2)
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")], kmeans, 
+             method = "silhouette", k.max=15) # Kmeans with Silhouette
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")], kmeans, 
+             method = "wss", k.max=15) # Kmeans with wss
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")], kmeans, 
+             method = "gap_stat", k.max=15) # Kmeans with Gap Statistic
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")],hcut , 
+             method = "silhouette", k.max=15) # Hierarchical Cut with Silhouette
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")],hcut , 
+             method = "wss", k.max=15) # Hierarchical Cut with wss
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")],hcut, 
+             method = "gap_stat", k.max=15) # Hierarchical Cut with Gap Statistic
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")],cluster::pam , 
+             method = "silhouette", k.max=15) # Cluster Pam with Silhouette
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")],cluster::pam, 
+             method = "wss", k.max=15) # Cluster Pam with wss
+
+fviz_nbclust(dat.scaled[,c("Income", "SpendingScore","Age","Savings")],cluster::pam, 
+             method = "gap_stat", k.max=15) # Cluster Pam with Gap Statistic
+
+```
+
+```{r DBSCAN clustering with}
+
+set.seed(2)
+
+kNNdistplot(dat.scaled[,c("Income", "SpendingScore","Age","Savings")], k = 5)
+
+clusters = dbscan(dat.scaled[,c("Age", "Income", "SpendingScore","Savings")], 
+                  minPts = 3, 
+                  eps = 0.09)
+dat.scaled$dbscan = clusters$cluster
+
+plotClusti(dat.scaled, dat.scaled$dbscan)
+plotClusta(dat.scaled, dat.scaled$dbscan)
+plotClusts(dat.scaled, dat.scaled$dbscan)
+
+```
+
+```{r Optimizing the clusters by looking at distance metrics}
+# Optimizing the clusters by looking at distance metrics
+
+df = dat.scaled[,c("Income", "SpendingScore","Age","Savings" )]
+dd_euc = dist(df, method = "euclidean")
+dd_max = dist(df, method = "maximum")
+dd_man = dist(df, method = "manhattan")
+dd_can = dist(df, method = "canberra")
+dd_bin = dist(df, method = "binary")
+dd_min = dist(df, method = "minkowski")
+
+k <- 5
+
+set.seed(2)
+
+res = data.frame(method=character(), wss=numeric(), betweenss=numeric())
+
+clusters = kmeans(dd_euc, k, nstart=50)
+res = rbind(res, data.frame(method="euclidean", wss=clusters$tot.withinss, betweenness=clusters$betweenss))
+k5_euc_i <- plotClusti(df, clusters$cluster)
+k5_euc_a <- plotClusta(df, clusters$cluster)
+k5_euc_s <- plotClusts(df, clusters$cluster)
+
+grid.arrange(k5_euc_i,k5_euc_a, ncol=2)
+
+clusters = kmeans(dd_max, k, nstart=50)
+res = rbind(res, data.frame(method="maximum", wss=clusters$tot.withinss, betweenness=clusters$betweenss))
+k5_max_i <- plotClusti(df, clusters$cluster)
+k5_max_a <- plotClusta(df, clusters$cluster)
+k5_max_s <- plotClusts(df, clusters$cluster)
+
+grid.arrange(k5_max_i,k5_max_a, ncol=2)
+
+clusters = kmeans(dd_man, k, nstart=50)
+res = rbind(res, data.frame(method="manhattan", wss=clusters$tot.withinss, betweenness=clusters$betweenss))
+k5_man_i <- plotClusti(df, clusters$cluster)
+k5_man_a <- plotClusta(df, clusters$cluster)
+k5_man_s <- plotClusts(df, clusters$cluster)
+
+grid.arrange(k5_man_i,k5_man_a, ncol=2)
+
+clusters = kmeans(dd_can, k, nstart=50)
+res = rbind(res, data.frame(method="canberra", wss=clusters$tot.withinss, betweenness=clusters$betweenss))
+k5_can_i <- plotClusti(df, clusters$cluster)
+k5_can_a <- plotClusta(df, clusters$cluster)
+k5_can_s <- plotClusts(df, clusters$cluster)
+
+grid.arrange(k5_can_i,k5_can_a, ncol=2)
+
+clusters = kmeans(dd_bin, k, nstart=50)
+res = rbind(res, data.frame(method="binary", wss=clusters$tot.withinss, betweenness=clusters$betweenss))
+k5_bin_i <- plotClusti(df, clusters$cluster)
+k5_bin_a <- plotClusta(df, clusters$cluster)
+k5_bin_s <- plotClusts(df, clusters$cluster)
+
+clusters$size
+
+grid.arrange(k5_bin_i,k5_bin_a, ncol=2)
+
+clusters = kmeans(dd_min, k, nstart=50)
+res = rbind(res, data.frame(method="minkowski", wss=clusters$tot.withinss, betweenness=clusters$betweenss))
+k5_min_i <- plotClusti(df, clusters$cluster)
+k5_min_a <- plotClusta(df, clusters$cluster)
+k5_min_s <- plotClusts(df, clusters$cluster)
+
+grid.arrange(k5_min_i,k5_min_a, ncol=2)
+
+res
+
+```
+
+
+```{r Summary of all of the distance metrics}
+res
+```
+
+```{r Final Clusters}
+# Final Clusters running K-Means with Manhattan Distance Metric, and 5 Clusters
+k5_man_i
+k5_man_a
+k5_man_s
+```
+
